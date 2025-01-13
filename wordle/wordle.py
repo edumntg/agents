@@ -8,35 +8,47 @@ from phi.agent import Agent
 from phi.model.deepseek import DeepSeekChat
 import re
 import json
+from phi.tools.python import PythonTools
 
 guess_agent = Agent(
     model = DeepSeekChat(),
     instructions = [
-        "You are an expert Wordle player who uses optimal strategy to solve the puzzle",
+        "You are a professional Wordle player",
         "Rules:",
         "- You must guess a 5-letter target word in 6 or fewer turns",
-        "- Each guess must be a valid 5-letter lowercase word",
-        "- You cannot repeat previously used words",
+        "- Each guess must be a valid 5-letter English lowercase word",
+        "- You must not repeat previously used words",
         "- After each guess, you receive feedback:",
         "  '+' = correct letter in correct position (Green).",
         "  '*' = correct letter in wrong position (Yellow).",
         "  '#' = letter not in word (Wrong/Gray).",
+        """
+        For example, if the hidden word is 'scary' and your guess is 'sappy', the board will
+        be updated with: '+*##+'. It means:
+        - The letter at index 0 is in the correct position
+        - The letter at index 1 is in the word but in wrong position
+        - The letter at index 2 is not in the hidden word
+        - The letter at index 3 is not in the hidden word
+        - The letter at index 4 is in the correct position
+        
+        So the next guess should contain the letter 's' at index 0, the letter 'y' at index 4 an the letter 'a' at any other index different from 1
+        NOTE: This is just an example. Use the same analysis for all guesses
+        """
         
         "Strategy/Critical:",
         "1. Start with words that contain common letters (E,A,R,I,O,T,S)",
         "2. Prioritize finding new correct letters in early guesses",
         "3. Use confirmed letters (+/*) in subsequent guesses",
         "4. Never use letters marked as # (wrong) in future guesses",
-        "5. If you have multiple good (+) positions, always maintain those letters in those exact positions",
-        "6. Always use words containing letters in correct positions.",
+        "5. If you have multiple good (+) positions, always maintain those letters in the same indexes",
         "7. CRITICAL: Always maintain correct letters (+) in correct positions",
-        "8. Analyze previous word, check for letters in incorrect positions (*) and ensure your next guess contains them but in different positions (use wrong letters (#) positions).",
-        "9. Try to position bad (*) letters in unused positions",
-        "10. ALWAYS MAXIMIZE YOUR SCORE."
-        
+        "8. Analyze previous word, check for letters in incorrect positions (*) and ensure your next guess contains them in different indexes but not where correct letter '+' are present",
+        "9. Always re-position bad (*) letters in unused indexes/positions",
+        "10. CRITICAL: Keep the HIDDEN_WORD_PATTERN. ALWAYS KEEP THAT PATTERN WITH VISIBLE LETTERS. THIS IS CRUCIAL",
+
         "Output format:",
         """
-        - In your response, after the explanation, the letters inside a python list.
+        - In your response include your guess as a JSON object where keys are the indexes (quoted) and the values are the letters
         - For example, if the letter is 'chair', an example of your output will be:
         ```json
         {
@@ -47,6 +59,7 @@ guess_agent = Agent(
             '4': 'r'
         }
         ```
+        Additionally, include a sentence specifying a value between (0, 1), on how sure you are about your guess. Use two decimal places
         """
     ],
     reasoning = True
@@ -72,36 +85,59 @@ double_check_agent = Agent(
         ```
         """,
 
-        "You receive the new guess before being evaluated in the game",
-        "You also receive the new guess in the same JSON format specified before",
-        "You need to analyze the outcome of the new guess",
-        "If the new guess is not good, change it",
-        "Carefully analyze the positions of each letter, do not make mistakes",
+        """
+        You receive the new guess/word before being evaluated in the game.
+        You will receive it as a JSON object containing the indexes as keys (quoted) and the letters as values
+        Example for 'sassy':
+        ```json
+        [{
+            '0': 's',
+            '1': 'a',
+            '2': 's',
+            '3': 's',
+            '4': 'y'
+        }]
+        ```
+        """,
+        """
+        Perform the following analysis for the word/guess
+        ## WORD_ANALYSIS
+        - Check if it contains letters marked as correct '+' in previous guesses. If so, keep these letters in these same indexes/positions.
+        - Check if it contains letters marked as bad '*' which means they have to be used in the next guess/word, but in different index.
+        - Check for letters marked as '#'. Those are not present in the hidden word and must be avoided at all cost in future words/guess.
+        """,
+        "Carefully analyze the positions/indexes of each letter, do not make mistakes."
+        "Always double check."
+        "Use a python code if needed to compare indexes and letters",
 
         "Analyze the words and the index position of each letter. First index is always zero",
         "If you think the new guess is good enough, do not change it and just return it",
         "If you change it, ensure is different from previous words used",
-        "Return an explanation of why you chose the new word",
-        "Strategy/Critical:",
-        "- Prioritize finding new correct letters in early guesses",
-        "- Use confirmed letters in subsequent guesses",
-        "- Remember, correct letters in correct positions are marked as: +",
-        "- Remember, correct letters but in incorrect positions are marked as: *",
-        "- Remember, letters not in word are marked as: #",
-        "- Minimize the use of letters marked as # (wrong) in future guesses",
-        "- If you have multiple good (+) letters in correct positions, always maintain those letters in those exact positions",
-        "- Always use words containing letters in correct positions.",
-        "- CRITICAL: Always maintain correct letters (+) in those positions",
-        "- Analyze previous words, check for letters in incorrect positions (*) and ensure your next guess contains them but in different positions (use wrong letters (#) positions).",
-        "- Try to position letters in incorrect positions (*) letters in unused positions",
-        "- Word can contain repeated letters. For example: sassy"
+        "If you decide to change it, remember to perform the WORD_ANALYSIS on it an ensure it contains more correct letters '+' than the initial one"
+        "Return the explanation and analysis of why the word/guess was or was not changed",
+        """
+        # Strategy/Critical:
+        - Prioritize finding new correct letters in early guesses
+        - Remember, correct letters in correct positions are marked as: +
+        - Remember, correct letters but in incorrect positions are marked as: *
+        - Remember, letters not in word are marked as: #
+        - Use letters marked as correct '+' in subsequent guesses
+        - If you have multiple good (+) letters in correct positions, always maintain those letters in those exact positions
+        - Word can contain repeated letters. For example: sassy
+        CRITICAL: Keep the HIDDEN_WORD_PATTERN. ALWAYS KEEP THAT PATTERN WITH VISIBLE LETTERS. THIS IS CRUCIAL
+        """,
+
         "# CRITICAL: ENSURE THAT THE NEW WORD IS NOT IN THE LIST OF PREVIOUS WORDS. ENSURE IT HAS NOT BEEN USED"
         "Your response should follow this exact format:",
         """
-        First, provide your step-by-step reasoning:
-        1. [First analysis step]
-        2. [Second analysis step]
-        3. [Final decision]
+        ## Analysis Steps
+        1. In the first step..
+        2. In the second step..
+        ...
+        N. In the N step...
+        ... etc
+        
+        Additionally, include a sentence specifying a value between (0, 1), on how sure you are about your guess. Use two decimal places
 
         Then provide your JSON response in this format:
         ```json
@@ -114,6 +150,8 @@ double_check_agent = Agent(
         """,
         "If your response already contains a JSON object, just append the properties to it"
     ],
+    tools=[PythonTools()],
+    show_tool_calls=True,
     reasoning = True
 )
 
@@ -160,9 +198,9 @@ if __name__ == '__main__':
         
         """
 
-        if game.get_discovered_word_state() != '*****':
+        if game.get_discovered_word_state() != '$$$$$':
             prompt += f"""
-            # CRITICAL
+            # HIDDEN_WORD_PATTERN
             The next guess should be similar to {game.get_discovered_word_state()}. Complete the missing letters
             """
 
@@ -187,8 +225,9 @@ if __name__ == '__main__':
         # Previous words
         {game.previous_words}
         
-        # New guess (unevaluated)
-        {first_word}
+        # New guess word an analysis of why it was chosen
+        Study the given analysis to see if it makes sense. Analyze the pattern of the hidden word.
+        {guess_response.content}
 
         # Previous evaluations
         ```python {game.evaluations_to_dict()}```
@@ -200,9 +239,9 @@ if __name__ == '__main__':
         
         """
 
-        if game.get_discovered_word_state() != '*****':
-            prompt += """
-            # CRITICAL
+        if game.get_discovered_word_state() != '$$$$$':
+            prompt += f"""
+            # HIDDEN_WORD_PATTERN
             The next guess should be similar to {game.get_discovered_word_state()}. Complete the missing letters
             """
 

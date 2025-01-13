@@ -38,7 +38,7 @@ class WordleGame(object):
 
     def init_board(self):
         """Initialize an empty 6x5 game board."""
-        self.board = [['_' for _ in range(5)] for _ in range(6)]
+        self.board = [['_' for _ in range(5)] for _ in range(self.max_tries)]
 
     def init(self):
         # Init board
@@ -47,7 +47,7 @@ class WordleGame(object):
         # Chose word
         self.chose_word()
 
-        self.evaluations = [[] for _ in range(6)]
+        self.evaluations = [[] for _ in range(self.max_tries)]
 
         self.letters_not_in_word = []
         self.tries = 0
@@ -157,7 +157,7 @@ class WordleGame(object):
         return output
 
     def is_over(self):
-        return self.tries == 6
+        return self.tries == self.max_tries
 
     def play(self):
         """Interactive method to play Wordle in the console."""
@@ -198,9 +198,9 @@ class WordleGame(object):
         - Unknown positions are shown as '*'
         """
         if not self.previous_words:  # If no guesses made yet
-            return '*****'
+            return '$$$$$'
             
-        result = ['*'] * 5
+        result = ['$'] * 5
         
         # Check all previous guesses to find correct letters
         for guess, eval_str in zip(self.previous_words, self.evaluations):
