@@ -139,7 +139,7 @@ double_check_agent = Agent(
         
         Additionally, include a sentence specifying a value between (0, 1), on how sure you are about your guess. Use two decimal places
 
-        Then provide your JSON response in this format:
+        Then provide your JSON response in this format (always include the ```json ``` markdown):
         ```json
         {
             "initial_guess": <new_guess_json>,
