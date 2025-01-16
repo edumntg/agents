@@ -44,7 +44,7 @@ guess_agent = Agent(
         "7. CRITICAL: Always maintain correct letters (+) in correct positions",
         "8. Analyze previous word, check for letters in incorrect positions (*) and ensure your next guess contains them in different indexes but not where correct letter '+' are present",
         "9. Always re-position bad (*) letters in unused indexes/positions",
-        "10. CRITICAL: Keep the HIDDEN_WORD_PATTERN. ALWAYS KEEP THAT PATTERN WITH VISIBLE LETTERS. THIS IS CRUCIAL",
+        "10. CRITICAL: ALWAYS ANALYZE THE 'HIDDEN_WORD_PATTERN'. YOUR GOAL IS TO DISCOVER ALL LETTERS. YOUR GUESSES SHOULD ALWAYS BE WORDS EQUAL TO THE PATTERN",
 
         "Output format:",
         """
@@ -124,7 +124,7 @@ double_check_agent = Agent(
         - Use letters marked as correct '+' in subsequent guesses
         - If you have multiple good (+) letters in correct positions, always maintain those letters in those exact positions
         - Word can contain repeated letters. For example: sassy
-        CRITICAL: Keep the HIDDEN_WORD_PATTERN. ALWAYS KEEP THAT PATTERN WITH VISIBLE LETTERS. THIS IS CRUCIAL
+        CRITICAL: ALWAYS ANALYZE THE 'HIDDEN_WORD_PATTERN'. YOUR GOAL IS TO DISCOVER ALL LETTERS. YOUR GUESSES SHOULD ALWAYS BE WORDS EQUAL TO THE PATTERN
         """,
 
         "# CRITICAL: ENSURE THAT THE NEW WORD IS NOT IN THE LIST OF PREVIOUS WORDS. ENSURE IT HAS NOT BEEN USED"
@@ -200,8 +200,7 @@ if __name__ == '__main__':
 
         if game.get_discovered_word_state() != '$$$$$':
             prompt += f"""
-            # HIDDEN_WORD_PATTERN
-            The next guess should be similar to {game.get_discovered_word_state()}. Complete the missing letters
+            HIDDEN_WORD_PATTERN={game.get_discovered_word_state()}
             """
 
         if game.letters_not_in_word:
@@ -241,8 +240,7 @@ if __name__ == '__main__':
 
         if game.get_discovered_word_state() != '$$$$$':
             prompt += f"""
-            # HIDDEN_WORD_PATTERN
-            The next guess should be similar to {game.get_discovered_word_state()}. Complete the missing letters
+            HIDDEN_WORD_PATTERN={game.get_discovered_word_state()}
             """
 
         if game.letters_not_in_word:
