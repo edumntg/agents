@@ -5,6 +5,9 @@ import json
 from typing import List
 import random
 
+from phi.agent import Agent
+from utils.utils import extract_json
+
 class WordleGame(object):
     words: List[str] = None
     target_word: str = None
@@ -15,6 +18,14 @@ class WordleGame(object):
     previous_words: List[str] = None
     score: int = 0
     letters_not_in_word: List[str] = None
+    agent: Agent = None
+    turn: int = 0
+    debug: bool = False
+
+    def __init__(self, agent: Agent = None, debug: bool = False):
+        self.agent = agent
+        self.turn = 0
+        self.debug = debug
 
     def get_words(self):
         # Fetch for 5-letter words and return them in a list
@@ -104,7 +115,43 @@ class WordleGame(object):
 
         return result
 
-    def play_turn(self, guess: str) -> bool:
+    def play_turn(self):
+        prompt = f"""# Current board state
+{self.pretty_board()}
+
+# Previous words
+{self.previous_words}
+
+# Previous evaluations
+```python {self.evaluations_to_dict()}```
+
+"""
+        if self.get_discovered_word_state() != '$$$$$':
+            prompt += f"HIDDEN_WORD_PATTERN={self.get_discovered_word_state()}"
+
+        if self.letters_not_in_word:
+            prompt += f"""# AVOID THE FOLLOWING LETTERS
+The following letters are not in the word. DO NOT SUGGEST WORDS CONTAINING THESE LETTERS
+The letters not in the target word are: [{','.join(self.letters_not_in_word)}]
+"""
+        agent_response = self.agent.run(prompt)
+
+        if self.debug: print("Agent response:", agent_response.content)
+        json_response = extract_json(agent_response.content)
+
+        if 'guess' in json_response:
+            if isinstance(json_response['guess'], str):
+                guess_word = json_response['guess']
+            else:
+                guess_word = ''.join(list(json_response['guess'].values()))
+        else:
+            guess_word = ''.join(list(json_response.values()))
+
+        is_correct = self.update_turn(guess_word)
+
+        return is_correct
+
+    def update_turn(self, guess: str) -> bool:
         """
         Play a single turn of Wordle. Returns updated board and whether the guess was correct.
         """
@@ -209,5 +256,13 @@ class WordleGame(object):
                     result[i] = letter
                     
         return ''.join(result)
+
+    def display_details(self):
+        print(f"Hidden word: {self.target_word} <- not seen by the agent.")
+        print(f"State of hidden word: {self.get_discovered_word_state()}")
+        print(f"Previous words: {','.join(self.previous_words)}")
+        print(f"Current score: {self.score}")
+        print("Previous evaluations", self.evaluations_to_dict())
+        print("Letters not in hidden word:", self.letters_not_in_word)
 
 
