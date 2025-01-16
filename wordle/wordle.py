@@ -31,33 +31,12 @@ guess_agent = Agent(
         "5. Maintain correct letters (+) in correct positions",
         "6. Re-position incorrect (*) letters in unused indexes",
         "7. Analyze the 'HIDDEN_WORD_PATTERN' to discover all letters",
+        "8. Adjust strategy dynamically based on feedback",
+        "9. Balance exploration of new letters with exploitation of known patterns",
+        "10. Always maintain confirmed letter positions in subsequent guesses",
         "Output format:",
         "- Respond with your guess as a JSON object with indexes as keys and letters as values"
     ],
-    reasoning = True
-)
-
-double_check_agent = Agent(
-    model = DeepSeekChat(),
-    instructions = [
-        "Analyze the Wordle guess of a previous agent",
-        "You will receive the current board state, previous words, and a new guess",
-        "Perform WORD_ANALYSIS on the guess:",
-        "- Ensure it contains correct '+' letters in the same positions",
-        "- Use '*' letters in different positions",
-        "- Avoid '#' letters",
-        "If the guess is good, return it unchanged. Otherwise, suggest a new guess",
-        "Ensure the new guess is not a previously used word",
-        "Output format:",
-        "## Analysis Steps",
-        "1. Check correct letters",
-        "2. Re-position incorrect letters",
-        "3. Avoid incorrect letters",
-        "Include a confidence score between 0 and 1, with two decimal places",
-        "Provide a JSON response with 'initial_guess', 'final_guess', and 'explanation'"
-    ],
-    # tools=[PythonTools()],
-    show_tool_calls=True,
     reasoning = True
 )
 
@@ -126,60 +105,14 @@ if __name__ == '__main__':
 
         print("Guess agent response:", guess_response.content)
         json_response = extract_json(guess_response.content)
-        first_word = ''.join(list(json_response.values()))
 
-        prompt = f"""
-        # Current board state
-        {game.pretty_board()}
-        
-        # Previous words
-        {game.previous_words}
-        
-        # New guess word an analysis of why it was chosen
-        Study the given analysis to see if it makes sense. Analyze the pattern of the hidden word.
-        {guess_response.content}
+        if 'guess' in json_response:
+            guess_word = ''.join(list(json_response['guess'].values()))
+        else:
+            guess_word = ''.join(list(json_response.values()))
 
-        # Previous evaluations
-        ```python {game.evaluations_to_dict()}```
-        
-        # Previous evaluations in JSON format
-        ```json {previous_evals_json}```
-        
-        Analyze the new guess and if you consider it needs to be changed, make a new one
-        
-        """
 
-        if game.get_discovered_word_state() != '$$$$$':
-            prompt += f"""
-            HIDDEN_WORD_PATTERN={game.get_discovered_word_state()}
-            """
-
-        if game.letters_not_in_word:
-            prompt += f"""
-
-            # AVOID THE FOLLOWING LETTERS
-            The following letters are not in the word. DO NOT SUGGEST WORDS CONTAINING THESE LETTERS
-            The letters not in the target word are: **{','.join(game.letters_not_in_word)}**
-            """
-
-        # Double-check
-        double_check_response = double_check_agent.run(prompt)
-
-        # Get refined word
-        json_obj = extract_json(double_check_response.content)
-        print("Refiner agent response:", double_check_response.content)
-        
-        # Handle final_guess as a string
-        final_word = json_obj['final_guess']
-        print(f"New word: {final_word}")
-
-        # Get agent response
-        print(f"Final agent guess: {final_word}")
-
-        previous_evals_json.append(json_obj['final_guess'])
-
-        # Play turn
-        is_correct = game.play_turn(final_word)
+        is_correct = game.play_turn(guess_word)
 
         if is_correct:
             print("Congratulations, you won!!")
