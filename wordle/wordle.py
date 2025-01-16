@@ -37,7 +37,7 @@ guess_agent = Agent(
         "Output format:",
         "- Respond with your guess as a JSON object with indexes as keys and letters as values"
     ],
-    reasoning = True
+    reasoning = False
 )
 
 def extract_json(s):
@@ -108,6 +108,10 @@ if __name__ == '__main__':
 
         if 'guess' in json_response:
             guess_word = ''.join(list(json_response['guess'].values()))
+            if isinstance(json_response['guess'], str):
+                guess_word = json_response['guess']
+            else:
+                guess_word = ''.join(list(json_response['guess'].values()))
         else:
             guess_word = ''.join(list(json_response.values()))
 
