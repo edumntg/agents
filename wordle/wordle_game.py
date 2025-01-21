@@ -22,10 +22,11 @@ class WordleGame(object):
     turn: int = 0
     debug: bool = False
 
-    def __init__(self, agent: Agent = None, debug: bool = False):
+    def __init__(self, agent: Agent = None, debug: bool = False, max_tries: int = 6):
         self.agent = agent
         self.turn = 0
         self.debug = debug
+        self.max_tries = max_tries
 
     def get_words(self):
         # Fetch for 5-letter words and return them in a list
@@ -204,7 +205,7 @@ The letters not in the target word are: [{','.join(self.letters_not_in_word)}]
         return output
 
     def is_over(self):
-        return self.tries == self.max_tries
+        return self.tries == self.max_tries and '$' not in self.get_discovered_word_state()
 
     def play(self):
         """Interactive method to play Wordle in the console."""
