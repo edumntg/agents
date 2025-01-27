@@ -1,9 +1,10 @@
 # Wordle Game Logic and methods
 
 import requests
-import json
 from typing import List
 import random
+from rich import print as rprint
+from rich.panel import Panel
 
 from phi.agent import Agent
 from utils.utils import extract_json
@@ -63,7 +64,6 @@ class WordleGame(object):
 
         self.letters_not_in_word = []
         self.tries = 0
-        self.score = 0
 
         self.previous_words = []
 
@@ -86,8 +86,6 @@ class WordleGame(object):
         # First check for correct positions
         for i in range(5):
             if guess_chars[i] == target_chars[i]:
-                if update_score:
-                    self.score += 10  # Add 10 points for correct letter in correct position
                 result[i] = '+'
                 target_chars[i] = '*'
                 guess_chars[i] = '#'
@@ -98,8 +96,6 @@ class WordleGame(object):
                 if guess_chars[i] in target_chars:  # Check if letter exists in remaining target chars
                     for j in range(5):
                         if target_chars[j] != '*' and guess_chars[i] == target_chars[j]:
-                            if update_score:
-                                self.score -= 5  # Subtract 5 points for correct letter in wrong position
                             result[i] = '*'
                             target_chars[j] = '*'
                             break
@@ -109,10 +105,6 @@ class WordleGame(object):
         for i, result_char in enumerate(result):
             if result_char == '#' and guess_chars[i] not in self.letters_not_in_word:
                 self.letters_not_in_word.append(guess[i])
-
-        # Add penalty for letters not in word
-        if update_score:
-            self.score -= result.count('#')*20  # Subtract 20 points for each letter not in word
 
         return result
 
@@ -175,12 +167,22 @@ The letters not in the target word are: [{','.join(self.letters_not_in_word)}]
 
     def display_board(self) -> None:
         """Display the current state of the board with color indicators."""
+        board_str = ""
         for row_idx, (row, eval_row) in enumerate(zip(self.board, self.evaluations)):
-            # Add spaces between letters and format each row
-            formatted_row = ' '.join(row)
-            # Use consistent symbols: + for correct, * for wrong position, # for not in word
-            eval_string = ' '.join(eval_row) if eval_row else ' '.join('_'*5)
-            print(f"{eval_string}")
+            row_str = ""
+            if eval_row:  # If we have evaluations for this row
+                for letter, eval_char in zip(row, eval_row):
+                    if eval_char == '+':  # Correct position
+                        row_str += f"[green]{letter}[/] "
+                    elif eval_char == '*':  # Wrong position
+                        row_str += f"[yellow]{letter}[/] "
+                    else:  # Not in word
+                        row_str += f"[grey]{letter}[/] "
+            else:  # Empty row
+                row_str += ' '.join(['_'] * 5)
+            board_str += f"{row_str.strip()}\n"
+        
+        rprint(Panel(board_str, title="Wordle Board"))
 
     def pretty_board(self) -> str:
         """Return the current state of the board with color indicators as a string."""
@@ -210,35 +212,32 @@ The letters not in the target word are: [{','.join(self.letters_not_in_word)}]
     def play(self):
         """Interactive method to play Wordle in the console."""
         self.init()  # Initialize the game
-        print("Welcome to Wordle!")
-        print("Enter a 5-letter word guess (or 'quit' to exit)")
-        print(f"The score starts at 0. Get points for correct letters (+10)")
-        print(f"Lose points for wrong position (-5) or wrong letters (-20)")
+        rprint("[bold blue]Welcome to Wordle![/]")
+        rprint("[yellow]Enter a 5-letter word guess (or 'quit' to exit)[/]")
+        rprint(f"[green]The score starts at 0. Get points for correct letters (+10)[/]")
+        rprint(f"[red]Lose points for wrong position (-5) or wrong letters (-20)[/]")
 
         while self.tries < self.max_tries:
             self.display_board()
-            print(f"Current score: {self.score}")
-            guess = input(f"Enter guess {self.tries + 1}/{self.max_tries}: ").lower()
+            guess = input(f"[yellow]Enter guess {self.tries + 1}/{self.max_tries}: [/]").lower()
 
             if guess == 'quit':
-                print(f"The word was: {self.target_word}")
+                rprint(f"[red]The word was: {self.target_word}[/]")
                 return
 
             if not self.is_valid_guess(guess):
-                print("Invalid guess. Please enter a valid 5-letter word.")
+                rprint("[red]Invalid guess. Please enter a valid 5-letter word.[/]")
                 continue
 
             is_correct = self.play_turn(guess)
 
             if is_correct:
                 self.display_board()
-                print(f"Congratulations! You won in {self.tries} tries!")
-                print(f"Final score: {self.score}")
+                rprint(Panel(f"[green]Congratulations! You won in {self.tries} tries![/]", title="Game Won!"))
                 return
 
         self.display_board()
-        print(f"Game Over! The word was: {self.target_word}")
-        print(f"Final score: {self.score}")
+        rprint(Panel(f"[red]Game Over! The word was: {self.target_word}[/]", title="Game Over"))
 
     def get_discovered_word_state(self):
         """Returns the current state of the discovered word, where:
@@ -259,11 +258,14 @@ The letters not in the target word are: [{','.join(self.letters_not_in_word)}]
         return ''.join(result)
 
     def display_details(self):
-        print(f"Hidden word: {self.target_word} <- not seen by the agent.")
-        print(f"State of hidden word: {self.get_discovered_word_state()}")
-        print(f"Previous words: {','.join(self.previous_words)}")
-        print(f"Current score: {self.score}")
-        print("Previous evaluations", self.evaluations_to_dict())
-        print("Letters not in hidden word:", self.letters_not_in_word)
+        details = [
+            f"[cyan]Hidden word:[/] [yellow]{self.target_word}[/] <- not seen by the agent",
+            f"[cyan]State of hidden word:[/] [yellow]{self.get_discovered_word_state()}[/]",
+            f"[cyan]Previous words:[/] [yellow]{','.join(self.previous_words)}[/]",
+            f"[cyan]Previous evaluations:[/] [yellow]{self.evaluations_to_dict()}[/]",
+            f"[cyan]Letters not in hidden word:[/] [yellow]{self.letters_not_in_word}[/]"
+        ]
+        details_str = "\n".join(details)
+        rprint(Panel(details_str, title="Game Details"))
 
 

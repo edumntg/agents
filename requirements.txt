@@ -1,4 +1,6 @@
 streamlit
 python-dotenv
-phi-agent
-requests 
+phidata
+requests
+rich
+openai
