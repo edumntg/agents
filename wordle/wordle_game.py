@@ -188,8 +188,6 @@ The letters not in the target word are: [{','.join(self.letters_not_in_word)}]
         """Return the current state of the board with color indicators as a string."""
         out = ""
         for row_idx, (row, eval_row) in enumerate(zip(self.board, self.evaluations)):
-            # Add spaces between letters and format each row
-            formatted_row = ' '.join(row)
             # Use consistent symbols: + for correct, * for wrong position, # for not in word
             eval_string = ' '.join(eval_row) if eval_row else ' '.join('_'*5)
             out += f"{eval_string}\n"

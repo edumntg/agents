@@ -1,7 +1,5 @@
 from dotenv import load_dotenv
 from rich import print as rprint
-from rich.panel import Panel
-
 
 from utils.utils import extract_json
 from wordle_game import WordleGame
@@ -64,7 +62,8 @@ def play_with_evaluator():
 
     prev_eval_response = ""
     prev_guess = None
-    while not game.is_over():
+    is_correct = False
+    while game.tries < game.max_tries and not is_correct:
         game.display_details()
         game.display_board()
         prompt = f"""# Previous words used: {game.previous_words}"""
@@ -87,6 +86,7 @@ The feedback provided by the game from your previous guesses os:
 Analyze previous feedbacks to choose a new word"""
 
         player_response = guess_agent.run(prompt)
+        print("Player response:", player_response.content)
         json_response = extract_json(player_response.content)
 
         if 'guess' in json_response:
@@ -113,14 +113,14 @@ Tries left: {game.max_tries - game.tries - 1}""")
         prev_eval_response += evaluator_response.content + "\n\n"
 
         if is_correct:
-            rprint("[bold green]You won![/]")
+            rprint("[bold green]You won!🎉🎉[/]")
             break
 
-    # Display board
+    # Display final state
     game.display_details()
     game.display_board()
     if not is_correct:
-        rprint("[bold red]You lose![/]")
+        rprint(f"[bold red]Game Over😭! The word was: {game.target_word}[/]")
 
 
 if __name__ == '__main__':
